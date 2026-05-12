@@ -980,7 +980,7 @@ class GenSkeFeat(BaseTransform):
             keypoint = results.pop('keypoint')
             keypoint_score = results.pop('keypoint_score')
             results['keypoint'] = np.concatenate(
-                [keypoint, keypoint_score[..., None]], -1)
+                [keypoint[..., :2], keypoint_score[..., None]], -1) #x, y, score
         return self.ops(results)
 
     def __repr__(self) -> str:
