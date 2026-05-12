@@ -974,9 +974,9 @@ class GenSkeFeat(BaseTransform):
             dict: The result dict.
         """
         if 'keypoint_score' in results and 'keypoint' in results:
-            assert self.dataset != 'nturgb+d'
-            assert results['keypoint'].shape[
-                -1] == 2, 'Only 2D keypoints have keypoint_score. '
+            #assert self.dataset != 'nturgb+d'
+            # assert results['keypoint'].shape[
+            #     -1] == 2, 'Only 2D keypoints have keypoint_score. '
             keypoint = results.pop('keypoint')
             keypoint_score = results.pop('keypoint_score')
             results['keypoint'] = np.concatenate(

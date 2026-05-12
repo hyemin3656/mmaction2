@@ -100,6 +100,24 @@ class WandbVisBackend(WandbVisBackend):
         frames = frames.transpose(0, 3, 1, 2)
         self._wandb.log({'video': wandb.Video(frames, fps=fps, format='gif')})
 
+    @force_init_env
+    def add_scalars(self,
+                    scalar_dict: dict,
+                    step: int = 0,
+                    file_path: Optional[str] = None,
+                    **kwargs) -> None:
+        """Record scalar data to wandb with the MMEngine step preserved.
+
+        MMEngine passes the validation epoch through ``step`` in
+        LoggerHook.after_val_epoch, but its default WandB backend ignores that
+        argument. Keeping it in the logged payload lets W&B plot validation
+        metrics against epoch.
+        """
+        scalar_dict = scalar_dict.copy()
+        scalar_dict.setdefault('epoch', step)
+        scalar_dict.setdefault('step', step)
+        self._wandb.log(scalar_dict, commit=self._commit)
+
 
 @VISBACKENDS.register_module()
 class TensorboardVisBackend(TensorboardVisBackend):

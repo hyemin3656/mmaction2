@@ -60,7 +60,7 @@ model = dict(
     type='RecognizerGCN',
     backbone=dict(
         type='STGCN',
-        in_channels=3, #x, y, z (depth)
+        in_channels=4, #x, y, z (depth), score
         graph_cfg=dict(
             layout=mediapipe_sign_layout,
             mode='stgcn_spatial'
@@ -75,6 +75,27 @@ model = dict(
 
 dataset_type = 'PoseDataset'
 ann_file = '../runyourai/ksl/mediapipe_sign_3d.pkl'
+
+vis_backends = [
+    dict(type='LocalVisBackend'),
+    dict(
+        type='WandbVisBackend',
+        init_kwargs=dict(
+            project='mediapipe-sign-3d',
+            name='stgcn_8xb16-joint-u100-80e_mediapipe-sign-keypoint-3d',
+            config=dict(num_classes=NUM_CLASSES)),
+        define_metric_cfg=[
+            dict(name='epoch'),
+            dict(name='step'),
+            dict(name='lr', step_metric='epoch'),
+            dict(name='loss', step_metric='epoch'),
+            dict(name='loss_cls', step_metric='epoch'),
+            dict(name='top1_acc', step_metric='epoch'),
+            dict(name='top5_acc', step_metric='epoch'),
+            dict(name='acc/*', step_metric='epoch'),
+        ])
+]
+visualizer = dict(type='ActionVisualizer', vis_backends=vis_backends)
 
 # j	 	관절 좌표 자체
 # b		연결된 관절 간 차이 벡터
@@ -149,7 +170,7 @@ val_evaluator = [dict(type='AccMetric')]
 test_evaluator = val_evaluator
 
 train_cfg = dict(
-    type='EpochBasedTrainLoop', max_epochs=20, val_begin=1, val_interval=1)
+    type='EpochBasedTrainLoop', max_epochs=30, val_begin=1, val_interval=1) #20
 val_cfg = dict(type='ValLoop')
 test_cfg = dict(type='TestLoop')
 
@@ -157,7 +178,7 @@ param_scheduler = [
     dict(
         type='CosineAnnealingLR',
         eta_min=0,
-        T_max=20,
+        T_max=30, #16
         by_epoch=True,
         convert_to_iter_based=True)
 ]
@@ -166,7 +187,7 @@ optim_wrapper = dict(
     optimizer=dict(
         type='SGD', lr=0.1, momentum=0.9, weight_decay=0.0005, nesterov=True))
 
-default_hooks = dict(checkpoint=dict(interval=1), logger=dict(interval=100))
+default_hooks = dict(checkpoint=dict(interval=10), logger=dict(interval=100))
 
 # Default setting for scaling LR automatically
 #   - `enable` means enable scaling LR automatically
