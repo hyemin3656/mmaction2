@@ -1,6 +1,7 @@
 # Copyright (c) OpenMMLab. All rights reserved.
 from .formatting import (FormatAudioShape, FormatGCNInput, FormatShape,
-                         PackActionInputs, PackLocalizationInputs, Transpose)
+                         PackActionInputs, PackCTCInputs,
+                         PackLocalizationInputs, Transpose)
 from .loading import (ArrayDecode, AudioFeatureSelector, BuildPseudoClip,
                       DecordDecode, DecordInit, DenseSampleFrames,
                       GenerateLocalizationLabels, ImageDecode,
@@ -29,7 +30,7 @@ __all__ = [
     'LoadAudioFeature', 'LoadHVULabel', 'DecompressPose',
     'LoadLocalizationFeature', 'LoadProposals', 'LoadRGBFromFile',
     'MergeSkeFeat', 'MultiScaleCrop', 'OpenCVDecode', 'OpenCVInit',
-    'OpenCVInit', 'PIMSDecode', 'PIMSInit', 'PackActionInputs',
+    'OpenCVInit', 'PIMSDecode', 'PIMSInit', 'PackActionInputs', 'PackCTCInputs',
     'PackLocalizationInputs', 'PadTo', 'PoseCompact', 'PoseDecode',
     'PreNormalize2D', 'PreNormalize3D', 'PyAVDecode', 'PyAVDecodeMotionVector',
     'PyAVInit', 'PyAVInit', 'PytorchVideoWrapper', 'RandomCrop',

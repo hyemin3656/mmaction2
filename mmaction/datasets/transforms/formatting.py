@@ -111,6 +111,54 @@ class PackActionInputs(BaseTransform):
 
 
 @TRANSFORMS.register_module()
+class PackCTCInputs(BaseTransform):
+    """Pack skeleton inputs and CTC gloss sequence targets.
+
+    Args:
+        meta_keys (Sequence[str]): The meta keys to save in the metainfo of
+            the data sample.
+    """
+
+    def __init__(self,
+                 meta_keys: Sequence[str] = ('img_shape', 'img_key',
+                                             'video_id', 'timestamp')) -> None:
+        self.meta_keys = meta_keys
+
+    def transform(self, results: Dict) -> Dict:
+        """Pack inputs and ``gt_gloss`` into an ActionDataSample."""
+        packed_results = dict()
+        if 'inputs' in results:
+            packed_results['inputs'] = to_tensor(results['inputs'])
+        elif 'keypoint' in results:
+            packed_results['inputs'] = to_tensor(results['keypoint'])
+        else:
+            raise ValueError('Cannot get `inputs` or `keypoint` in the input '
+                             'dict of `PackCTCInputs`.')
+
+        data_sample = ActionDataSample()
+        if 'gt_gloss' in results:
+            gt_gloss = results['gt_gloss']
+        elif 'label' in results:
+            gt_gloss = results['label']
+        else:
+            gt_gloss = None
+
+        if gt_gloss is not None:
+            gt_gloss = to_tensor(gt_gloss).to(dtype=torch.long).flatten()
+            data_sample.set_field(gt_gloss, 'gt_gloss')
+
+        img_meta = {k: results[k] for k in self.meta_keys if k in results}
+        data_sample.set_metainfo(img_meta)
+        packed_results['data_samples'] = data_sample
+        return packed_results
+
+    def __repr__(self) -> str:
+        repr_str = self.__class__.__name__
+        repr_str += f'(meta_keys={self.meta_keys})'
+        return repr_str
+
+
+@TRANSFORMS.register_module()
 class PackLocalizationInputs(BaseTransform):
 
     def __init__(self, keys=(), meta_keys=('video_name', )):
