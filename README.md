@@ -1,4 +1,7 @@
 # FAIRYTALESL - Setup Guide
+This repository is forked and modified from the original MMACTION2 repository to support **sequence-level action recognition**.
+
+- Original MMACTION2 Repository: https://github.com/open-mmlab/mmaction2
 
 ## Requirements
 
