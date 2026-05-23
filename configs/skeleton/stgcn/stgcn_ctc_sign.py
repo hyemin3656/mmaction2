@@ -70,15 +70,17 @@ val_pipeline = [
 
 test_pipeline = val_pipeline
 
+ann_path = '../dataset/gloss_sequences_splited/mediapipe_sign_3d.pkl'
+
 train_dataloader = dict(
     dataset=dict(
         _delete_=True,
         type='PoseDataset',
-        ann_file='../runyourai/ksl/mediapipe_sign_3d.pkl',
+        ann_file=ann_path,
         pipeline=train_pipeline,
         split='train'))
-val_dataloader = dict(dataset=dict(pipeline=val_pipeline))
-test_dataloader = dict(dataset=dict(pipeline=test_pipeline))
+val_dataloader = dict(dataset=dict(pipeline=val_pipeline, ann_file=ann_path))
+test_dataloader = dict(dataset=dict(pipeline=test_pipeline, ann_file=ann_path))
 
 
 
