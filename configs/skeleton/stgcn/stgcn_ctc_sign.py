@@ -4,6 +4,11 @@ _base_ = './stgcn_8xb16-joint-u100-80e_mediapipe-sign-keypoint-3d.py'
 # STGCNCTCHead internally uses blank_idx = NUM_GLOSS.
 NUM_GLOSS = 67
 
+# GPU CTC loss backward is not deterministic in PyTorch, so this config must
+# keep deterministic algorithms disabled even if tools/train.py is called with
+# --deterministic. Set the seed only for ordinary run-to-run stability.
+randomness = dict(seed=0, diff_rank_seed=False, deterministic=False)
+
 # The base config already defines RecognizerGCN + STGCN backbone.
 # Only the classification head is replaced with the CTC head.
 model = dict(
@@ -31,6 +36,8 @@ vis_backends = [
             dict(name='lr', step_metric='epoch'),
             dict(name='loss', step_metric='epoch', summary='min'),
             dict(name='loss_ctc', step_metric='epoch', summary='min'),
+            dict(name='val_loss', step_metric='epoch', summary='min'),
+            dict(name='val_loss_ctc', step_metric='epoch', summary='min'),
             dict(name='wer', step_metric='epoch', summary='min'),
             dict(name='substitutions', step_metric='epoch', summary='min'),
             dict(name='deletions', step_metric='epoch', summary='min'),
@@ -105,7 +112,7 @@ optim_wrapper = dict(
 val_evaluator = dict(_delete_=True, type='WERMetric')
 test_evaluator = dict(_delete_=True, type='WERMetric')
 train_cfg = dict(
-    type='EpochBasedTrainLoop', max_epochs=100, val_begin=5, val_interval=5) #20
+    type='EpochBasedTrainLoop', max_epochs=200, val_begin=5, val_interval=5) #20
 val_cfg = dict(type='TimedValLoop')
 test_cfg = dict(type='TimedTestLoop')
 

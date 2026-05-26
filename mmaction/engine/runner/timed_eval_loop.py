@@ -1,10 +1,13 @@
 # Copyright (c) OpenMMLab. All rights reserved.
 import time
-from typing import Sequence
+from typing import Dict, Sequence
 
 import torch
+from mmengine.logging import HistoryBuffer
+from mmengine.model import is_model_wrapper
 from mmengine.runner import TestLoop, ValLoop, autocast
 from mmengine.runner.loops import _parse_losses, _update_losses
+from mmengine.utils import is_list_of
 
 from mmaction.registry import LOOPS
 
@@ -48,6 +51,29 @@ class _TimedEvalMixin:
             inference_fps=fps,
             num_inference_samples=self._num_inference_samples)
 
+    def _compute_losses(self, data_batch: Sequence[dict]) -> Dict:
+        """Compute losses during eval without affecting prediction timing."""
+        model = self.runner.model
+        data_preprocessor = (model.module.data_preprocessor
+                             if is_model_wrapper(model) else
+                             model.data_preprocessor)
+        data = data_preprocessor(data_batch, False)
+        return model._run_forward(data, mode='loss')
+
+    @staticmethod
+    def _update_eval_losses(losses: Dict, loss_buffer: Dict,
+                            prefix: str) -> Dict:
+        for loss_name, loss_value in losses.items():
+            prefixed_name = f'{prefix}_{loss_name}'
+            if prefixed_name not in loss_buffer:
+                loss_buffer[prefixed_name] = HistoryBuffer()
+            if isinstance(loss_value, torch.Tensor):
+                loss_buffer[prefixed_name].update(loss_value.item())
+            elif is_list_of(loss_value, torch.Tensor):
+                for loss_value_i in loss_value:
+                    loss_buffer[prefixed_name].update(loss_value_i.item())
+        return loss_buffer
+
 
 @LOOPS.register_module()
 class TimedValLoop(_TimedEvalMixin, ValLoop):
@@ -88,6 +114,8 @@ class TimedValLoop(_TimedEvalMixin, ValLoop):
             elapsed = time.perf_counter() - start
 
         outputs, self.val_loss = _update_losses(outputs, self.val_loss)
+        losses = self._compute_losses(data_batch)
+        self.val_loss = self._update_eval_losses(losses, self.val_loss, 'val')
         self._record_timing(elapsed, outputs)
         self.evaluator.process(data_samples=outputs, data_batch=data_batch)
         self.runner.call_hook(
