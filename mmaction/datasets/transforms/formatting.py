@@ -439,7 +439,7 @@ class FormatGCNInput(BaseTransform):
         nc = results.get('num_clips', 1)
         assert T % nc == 0
         keypoint = keypoint.reshape(
-            (M, nc, T // nc, V, C)).transpose(1, 0, 2, 3, 4)
+            (M, nc, T // nc, V, C)).transpose(1, 0, 2, 3, 4) #[nc, M, T_per_clip, V, C]
 
         results['keypoint'] = np.ascontiguousarray(keypoint)
         return results

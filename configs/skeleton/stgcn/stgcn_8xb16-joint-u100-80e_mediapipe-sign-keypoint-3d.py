@@ -196,7 +196,7 @@ model = dict(
     type='RecognizerGCN',
     backbone=dict(
         type='STGCN',
-        in_channels=4, #x, y, z (depth), score
+        in_channels=3, #x, y, z (depth), score
         graph_cfg=dict(
             layout=mediapipe_sign_layout,
             mode='stgcn_spatial'
@@ -244,10 +244,10 @@ train_pipeline = [
     # dict(type='PreNormalize3D'),
 
     dict(type='GenSkeFeat', feats=['j']), #모델 입력용 skeleton feature (검출 X, formatting)
-    dict(type='UniformSampleFrames', clip_len=64), #프레임 수 통일 #***
-    dict(type='PoseDecode'),
-    dict(type='FormatGCNInput', num_person=1),
-    dict(type='PackActionInputs')
+    dict(type='UniformSampleFrames', clip_len=64), #프레임 수 통일 
+    dict(type='PoseDecode'), #UniformSampleFrames의 output index로 indexing
+    dict(type='FormatGCNInput', num_person=1), #GCN입력 formatting
+    dict(type='PackActionInputs') #GCN입력 formatting
 ]
 
 val_pipeline = [

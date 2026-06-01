@@ -977,10 +977,10 @@ class GenSkeFeat(BaseTransform):
             #assert self.dataset != 'nturgb+d'
             # assert results['keypoint'].shape[
             #     -1] == 2, 'Only 2D keypoints have keypoint_score. '
-            keypoint = results.pop('keypoint')
-            keypoint_score = results.pop('keypoint_score')
+            keypoint = results.pop('keypoint') # [M, T, V, C]
+            keypoint_score = results.pop('keypoint_score') # [M, T, V]
             results['keypoint'] = np.concatenate(
-                [keypoint, keypoint_score[..., None]], -1)
+                [keypoint[..., :2], keypoint_score[..., None]], -1) #[keypoint, keypoint_score[..., None]], -1)
         return self.ops(results)
 
     def __repr__(self) -> str:
@@ -1045,7 +1045,7 @@ class UniformSampleFrames(BaseTransform):
         for clip_idx in range(self.num_clips):
             if num_frames < clip_len:
                 start = np.random.randint(0, num_frames)
-                inds = np.arange(start, start + clip_len)
+                inds = np.arange(start, start + clip_len) 
             elif clip_len <= num_frames < 2 * clip_len:
                 basic = np.arange(clip_len)
                 inds = np.random.choice(
@@ -1081,10 +1081,12 @@ class UniformSampleFrames(BaseTransform):
         all_inds = []
         for i in range(self.num_clips):
             if num_frames < clip_len:
+                #clip_len보다 짧은 영상 -> 반복해서 64프레임 완성 (mod)
                 start_ind = i if num_frames < self.num_clips \
                     else i * num_frames // self.num_clips
                 inds = np.arange(start_ind, start_ind + clip_len)
             elif clip_len <= num_frames < clip_len * 2:
+                #원본 프레임 일부를 랜덤하게 건너뛰어서 64프레임 완성
                 basic = np.arange(clip_len)
                 inds = np.random.choice(
                     clip_len + 1, num_frames - clip_len, replace=False)
@@ -1093,6 +1095,7 @@ class UniformSampleFrames(BaseTransform):
                 offset = np.cumsum(offset)
                 inds = basic + offset[:-1]
             else:
+                #원본이 충분히 긴 경우 -> 전체 구간을 clip_len개 구간으로 균등하게 나누고 각 구간에서 프레임 하나씩 선택
                 bids = np.array(
                     [i * num_frames // clip_len for i in range(clip_len + 1)])
                 bsize = np.diff(bids)
@@ -1131,9 +1134,10 @@ class UniformSampleFrames(BaseTransform):
             num_persons = [num_person] * num_frames
             for i in range(num_frames):
                 j = num_person - 1
-                while j >= 0 and np.all(np.abs(kp[j, i]) < 1e-5):
+                while j >= 0 and np.all(np.abs(kp[j, i]) < 1e-5): #프레임 i의 keypoint 전체가 거의 0이라면 사람 수 0
                     j -= 1
                 num_persons[i] = j + 1
+            #사람 수가 바뀌는 프레임 주변을 표시
             transitional = [False] * num_frames
             for i in range(1, num_frames - 1):
                 if num_persons[i] != num_persons[i - 1]:
