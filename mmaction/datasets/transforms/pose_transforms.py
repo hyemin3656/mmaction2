@@ -750,6 +750,146 @@ class PreNormalize2D(BaseTransform):
 
 
 @TRANSFORMS.register_module()
+class CenterNormalize2D(BaseTransform):
+    """Center normalized 2D keypoints.
+
+    This transform is intended for keypoints whose x/y coordinates are already
+    normalized to [0, 1]. It shifts x/y to be centered around zero, so the
+    range becomes [-0.5, 0.5].
+
+    Required Keys:
+
+        - keypoint
+
+    Modified Keys:
+
+        - keypoint
+
+    Args:
+        center (tuple[float, float]): The x/y center to subtract.
+            Defaults to (0.5, 0.5).
+        mask_missing (bool): Whether to skip keypoints whose score is not
+            positive when keypoint_score exists. Defaults to True.
+        eps (float): The minimum score regarded as valid. Defaults to 1e-5.
+    """
+
+    def __init__(self,
+                 center: Tuple[float, float] = (0.5, 0.5),
+                 mask_missing: bool = True,
+                 eps: float = 1e-5) -> None:
+        self.center = center
+        self.mask_missing = mask_missing
+        self.eps = eps
+
+    def transform(self, results: Dict) -> Dict:
+        """The transform function of CenterNormalize2D."""
+        keypoint = results['keypoint']
+
+        # if self.mask_missing and 'keypoint_score' in results:
+        #     valid = results['keypoint_score'] > self.eps
+        #     keypoint[..., 0] = np.where(valid, keypoint[..., 0] - self.center[0],
+        #                                 keypoint[..., 0])
+        #     keypoint[..., 1] = np.where(valid, keypoint[..., 1] - self.center[1],
+        #                                 keypoint[..., 1])
+        # else:
+        keypoint[..., 0] = keypoint[..., 0] - self.center[0]
+        keypoint[..., 1] = keypoint[..., 1] - self.center[1]
+
+        results['keypoint'] = keypoint
+        return results
+
+    def __repr__(self) -> str:
+        repr_str = (f'{self.__class__.__name__}('
+                    f'center={self.center}, '
+                    f'mask_missing={self.mask_missing}, '
+                    f'eps={self.eps})')
+        return repr_str
+
+
+@TRANSFORMS.register_module()
+class BodyCenterNormalize2D(BaseTransform):
+    """Normalize 2D keypoints by subtracting a body center.
+
+    This transform is intended for keypoints whose x/y coordinates are already
+    normalized to [0, 1]. It keeps the original scale and converts x/y into
+    coordinates relative to a body center, by default the midpoint between
+    left shoulder and right shoulder.
+
+    Required Keys:
+
+        - keypoint
+
+    Modified Keys:
+
+        - keypoint
+
+    Args:
+        center_joints (tuple[int, int]): Joint indexes used to compute the
+            body center. Defaults to (11, 12).
+        scale (bool): Whether to divide x/y by the distance between
+            center_joints after subtracting the body center. Defaults to False.
+        mask_missing (bool): Whether to preserve missing keypoints. Defaults
+            to True.
+        eps (float): The minimum scale value used to avoid division by zero.
+            Defaults to 1e-5.
+    """
+
+    def __init__(self,
+                 center_joints: Tuple[int, int] = (11, 12),
+                 scale: bool = False,
+                 mask_missing: bool = True,
+                 eps: float = 1e-5) -> None:
+        self.center_joints = center_joints
+        self.scale = scale
+        self.mask_missing = mask_missing
+        self.eps = eps
+
+    def transform(self, results: Dict) -> Dict:
+        """The transform function of BodyCenterNormalize2D."""
+        keypoint = results["keypoint"]
+        joint_a, joint_b = self.center_joints
+        center = (keypoint[..., joint_a, :2] + keypoint[..., joint_b, :2]) / 2
+
+        # if self.mask_missing:
+        #     if "keypoint_score" in results:
+        #         joint_valid = results["keypoint_score"] > self.eps
+        #     else:
+        #         joint_valid = np.any(np.abs(keypoint[..., :2]) > self.eps,
+        #                              axis=-1)
+
+        #     center_valid = joint_valid[..., joint_a] & joint_valid[..., joint_b]
+        #     valid = joint_valid & center_valid[..., None]
+        #     keypoint[..., 0] = np.where(valid,
+        #                                 keypoint[..., 0] - center[..., 0, None],
+        #                                 keypoint[..., 0])
+        #     keypoint[..., 1] = np.where(valid,
+        #                                 keypoint[..., 1] - center[..., 1, None],
+        #                                 keypoint[..., 1])
+        # else:
+        keypoint[..., 0] = keypoint[..., 0] - center[..., 0, None]
+        keypoint[..., 1] = keypoint[..., 1] - center[..., 1, None]
+
+        if self.scale:
+            body_scale = np.linalg.norm(
+                keypoint[..., joint_a, :2] - keypoint[..., joint_b, :2],
+                axis=-1)
+            body_scale = np.maximum(body_scale, self.eps)
+            keypoint[..., 0] = keypoint[..., 0] / body_scale[..., None]
+            keypoint[..., 1] = keypoint[..., 1] / body_scale[..., None]
+
+        results["keypoint"] = keypoint
+        return results
+
+    def __repr__(self) -> str:
+        repr_str = (f"{self.__class__.__name__}("
+                    f"center_joints={self.center_joints}, "
+                    f"scale={self.scale}, "
+                    f"mask_missing={self.mask_missing}, "
+                    f"eps={self.eps})")
+        return repr_str
+
+
+@TRANSFORMS.register_module()
 class JointToBone(BaseTransform):
     """Convert the joint information to bone information.
 
@@ -979,8 +1119,7 @@ class GenSkeFeat(BaseTransform):
             #     -1] == 2, 'Only 2D keypoints have keypoint_score. '
             keypoint = results.pop('keypoint') # [M, T, V, C]
             keypoint_score = results.pop('keypoint_score') # [M, T, V]
-            results['keypoint'] = np.concatenate(
-                [keypoint[..., :2], keypoint_score[..., None]], -1) #[keypoint, keypoint_score[..., None]], -1)
+            results['keypoint'] = keypoint[..., :2] #np.concatenate([keypoint[..., :2], keypoint_score[..., None]], -1) #[keypoint, keypoint_score[..., None]], -1)
         return self.ops(results)
 
     def __repr__(self) -> str:
